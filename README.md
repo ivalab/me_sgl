@@ -17,6 +17,7 @@ The **Execution** module performs generated actions with operational information
 We employ Mask R-CNN as the Perception module to detect objects and their category segmentation masks. 
 The categorical information is detected and corresponding affordances and attributes are retrieved from knowledge base to build
 the initial state for PDDL.
+
 **Installation**
 
 ## Goal Learning
@@ -32,6 +33,7 @@ For installation, please refer to [Fast Downward](https://github.com/aibasel/dow
 Manipulation experiments are conducted in the simulator [AI2THOR](https://ai2thor.allenai.org/).
 Given that AI2THOR does not support physical modeling of robot-object interaction, masks which are provided via Pereception module
 is served as operational information.
+
 **Installation**
 
 ## Data
