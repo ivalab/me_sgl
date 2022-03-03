@@ -85,7 +85,12 @@ conda create --name me_sgl python=3.6
 ```
 conda activate me_sgl
 ```
-
+3. Follow the installation instruction provided in [Symbolic Goal Learning](https://github.com/ivalab/mmf) without creating a new 
+conda environment. You will also need to download the corresponding dataset which contains several dictionaries for decoding. 
+4. Install all requirements
+```
+pip install -r requirements.txt
+```
 
 ## Usage
 
