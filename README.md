@@ -7,15 +7,31 @@ The **Task Planning** module generates a sequence of low-level actions.
 The **Execution** module performs generated actions with operational information detected by the **Perception** module.
 
 ## Table of Contents
-- [Abstract](#Abstract)
+- [Experimental Setup](#Experimental-Setup)
+- [Evaluation Metrics](#Evaluation-Metrics)
 - [Perception](#Perception)
 - [Goal Learning](#Goal-Learning)
 - [Task Planning](#Task-Planning)
 - [Execution](#Execution)
-- [Data](#Data)
+- [Scene Reconstruction](#Scene-Reconstruction)
+- [Usage](#Usage)
 
-## Abstract
+## Experimental Setup
+Five different daily activities are conducted, which include Picking and Placing, Object Delivery, Cutting, Cleaning and Cooking. 
+There are four different levels of scenarios for each task. Easy scenario only contains involved objects in the scene. 
+Medium scenario incorporates irrelevant objects. The first hard scenario further includes multiple candidates while 
+the second hard scenario misses partial or all objects required to perform the task. 
+Due to missing objects in the scene, task planning is not expected to find valid solutions and execution is also not required for
+the second hard case. There are 10 scenarios for each level and either novel instruction or intent will be paired with the image.
 
+## Evaluation Metrics
+To evaluate each module in the instruction following framework, each manipulation experiment trial is considered as
+successful if it satifies four conditions. 
+For **Perception**, all involved objects are required to be correctly detected, which constructs the initial state for PDDL. 
+For **Goal Learning**, PDDL goal state should be correctly predicted. 
+For **Task Planning**, generated action sequence is composed of correct ordered actions. 
+Given that AI2THOR does not support physical modeling of robot-object interaction, **Execution** evaluation requires 
+the Intersection-of-Union (IoU) of detected and ground-truth masks for objects to be over the 0.5 threshold.
 
 ## Perception
 We employ [Mask R-CNN](https://arxiv.org/abs/1703.06870) as the Perception module to detect objects and their category segmentation masks. 
@@ -54,10 +70,10 @@ Manipulation experiments are conducted in the simulator [AI2THOR](https://ai2tho
 Given that AI2THOR does not support physical modeling of robot-object interaction, masks which are provided via Pereception module
 is served as operational information.
 
-**Installation**
-
-## Data
-
+## Scene Reconstruction
+For each experimental sample, it consists of a text file saves natural language input, a RGB image, a json file stores all information 
+for recovering environmental setup and a text file saves ground-truth PDDL goal state. All experiment samples are stored in the ```data```
+folder.
 
 ## Usage
 
