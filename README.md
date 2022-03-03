@@ -76,6 +76,17 @@ For each experimental sample, it consists of a text file saves natural language 
 for recovering environmental setup and a text file saves ground-truth PDDL goal state. All experiment samples are stored in the ```data```
 folder.
 
+## Installation
+1. Create a conda environment
+```
+conda create --name me_sgl python=3.6
+```
+2. Activate conda environment
+```
+conda activate me_sgl
+```
+
+
 ## Usage
 
 ## Citation
