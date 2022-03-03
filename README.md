@@ -14,6 +14,7 @@ The **Execution** module performs generated actions with operational information
 - [Task Planning](#Task-Planning)
 - [Execution](#Execution)
 - [Scene Reconstruction](#Scene-Reconstruction)
+- [Installation](#Installation)
 - [Usage](#Usage)
 
 ## Experimental Setup
@@ -74,6 +75,17 @@ is served as operational information.
 For each experimental sample, it consists of a text file saves natural language input, a RGB image, a json file stores all information 
 for recovering environmental setup and a text file saves ground-truth PDDL goal state. All experiment samples are stored in the ```data```
 folder.
+
+## Installation
+1. Create a conda environment
+```
+conda create --name me_sgl python=3.6
+```
+2. Activate conda environment
+```
+conda activate me_sgl
+```
+
 
 ## Usage
 
