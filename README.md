@@ -14,6 +14,7 @@ The **Execution** module performs generated actions with operational information
 - [Task Planning](#Task-Planning)
 - [Execution](#Execution)
 - [Scene Reconstruction](#Scene-Reconstruction)
+- [Installation](#Installation)
 - [Usage](#Usage)
 
 ## Experimental Setup
