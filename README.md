@@ -85,9 +85,13 @@ conda create --name me_sgl python=3.6
 ```
 conda activate me_sgl
 ```
-3. Follow the installation instruction provided in [Symbolic Goal Learning](https://github.com/ivalab/mmf) without creating a new 
+3. The pretrained model for MaskRCNN requires specific version of pytorch, install pytorch via the following command:
+```
+conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 cudatoolkit=10.2 -c pytorch
+```
+4. Follow the installation instruction provided in [Symbolic Goal Learning](https://github.com/ivalab/mmf) without creating a new 
 conda environment. You will also need to download the corresponding dataset which contains several dictionaries for decoding. 
-4. Install all required libraries
+5. Install all required libraries
 ```
 pip install -r requirements.txt
 ```
