@@ -1,0 +1,2 @@
+opencv-python
+ai2thor==4.1.0
