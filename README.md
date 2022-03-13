@@ -97,6 +97,7 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning]() network.  
 
 ## Citation
 If you'd like to compare against this work, please cite:
