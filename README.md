@@ -85,19 +85,25 @@ conda create --name me_sgl python=3.6
 ```
 conda activate me_sgl
 ```
-3. The pretrained model for MaskRCNN requires specific version of pytorch, install pytorch via the following command:
+3. Follow the official installation instruction, compile and build [downward](https://www.fast-downward.org/ObtainingAndRunningFastDownward)
+4. The pretrained model for MaskRCNN requires specific version of pytorch, install pytorch via the following command:
 ```
 conda install pytorch==1.9.0 torchvision==0.10.0 torchaudio==0.9.0 cudatoolkit=10.2 -c pytorch
 ```
-4. Follow the installation instruction provided in [Symbolic Goal Learning](https://github.com/ivalab/mmf) without creating a new 
+5. Follow the installation instruction provided in [Symbolic Goal Learning](https://github.com/ivalab/mmf) without creating a new 
 conda environment. You will also need to download the corresponding dataset which contains several dictionaries for decoding. 
-5. Install all required libraries
+6. Install all required libraries
 ```
 pip install -r requirements.txt
 ```
 
 ## Usage
-1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning]() network.  
+1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning]() network and put them under the folder of `pretrained_model`.  
+2. Taking the easy level task of cut task for example, the first step is to run symbolic goal learning approach to estimate the goal state for PDDL.
+```
+python mmf_cli/manipulation_experiment.py config=projects/resnet_bert_concat/configs/sgl/defaults_manipulation_experiment.yaml model=resnet_bert_concat
+```
+If you'd like to evaluate other tasks or difficulty levels, you will need to modify the corresponding arguments in `defaults_manipulation_experiment.yaml`.
 
 ## Citation
 If you'd like to compare against this work, please cite:
@@ -110,3 +116,4 @@ If you'd like to compare against this work, please cite:
   year={2022}
 }
 ```
+

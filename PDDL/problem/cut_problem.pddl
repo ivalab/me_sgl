@@ -1,0 +1,6 @@
+(define (problem cut_vision)
+    (:domain cut)
+    (:objects SinkBasin Apple Knife Faucet Bottle arm)
+    (:init (NOATTRIBUTES SinkBasin) (CUTTABLE Apple) (CUTTOOL Knife) (NOATTRIBUTES Faucet) (NOATTRIBUTES Bottle) (free arm))
+    (:goal (and (cut apple knife)))
+)
