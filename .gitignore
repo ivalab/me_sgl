@@ -1,3 +1,3 @@
 /pretrained_model/*
-./script/sas_plan
-./data/*/*/*/pred_pddl_goal_state.txt
+/script/sas_plan
+/data/*/*/*/pred_pddl_goal_state.txt
