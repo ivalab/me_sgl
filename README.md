@@ -101,7 +101,7 @@ pip install -r requirements.txt
 1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning]() network and put them under the folder of `pretrained_model`.  
 2. Taking the easy level task of cut task for example, the first step is to run symbolic goal learning approach to estimate the goal state for PDDL.
 ```
-python mmf_cli/manipulation_experiment.py config=projects/resnet_bert_concat/configs/sgl/defaults_manipulation_experiment.yaml model=resnet_bert_concat
+python mmf_cli/manipulation_experiment.py config=projects/resnet_bert_concat/configs/sgl/defaults_manipulation_experiment.yaml model=resnet_bert_concat dataset=sgl
 ```
 If you'd like to evaluate other tasks or difficulty levels, you will need to modify the corresponding arguments in `defaults_manipulation_experiment.yaml`.
 
