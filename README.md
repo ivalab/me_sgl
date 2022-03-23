@@ -98,7 +98,8 @@ pip install -r requirements.txt
 ```
 
 ## Usage
-1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning]() network and put them under the folder of `pretrained_model`.  
+1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning](https://www.dropbox.com/home/IVALab/Project/STL/Opensource/Pretrained_models) network and put them under the folder of `pretrained_model`.  
+For symbolic goal learning model, you should download the one named resnet_bert_concat_sg_sts and uncompress it.
 2. Taking the easy level task of cut task for example, the first step is to run symbolic goal learning approach to estimate the goal state for PDDL.
 ```
 python mmf_cli/manipulation_experiment.py config=projects/resnet_bert_concat/configs/sgl/defaults_manipulation_experiment.yaml model=resnet_bert_concat dataset=sgl
