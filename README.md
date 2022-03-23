@@ -98,12 +98,24 @@ pip install -r requirements.txt
 ```
 
 ## Usage
-1. Download pretrained models for [MaskRCNN]() and the proposed [symbolic goal learning]() network and put them under the folder of `pretrained_model`.  
+1. Download pretrained models for [MaskRCNN]() and the proposed [Symbolic Goal Learning](https://www.dropbox.com/home/IVALab/Project/STL/Opensource/Pretrained_models) network and put them under the folder of `pretrained_model`.  For symbolic goal learning model, you should download the one named resnet_bert_concat_sg_sts and uncompress it.
 2. Taking the easy level task of cut task for example, the first step is to run symbolic goal learning approach to estimate the goal state for PDDL.
 ```
 python mmf_cli/manipulation_experiment.py config=projects/resnet_bert_concat/configs/sgl/defaults_manipulation_experiment.yaml model=resnet_bert_concat dataset=sgl
 ```
 If you'd like to evaluate other tasks or difficulty levels, you will need to modify the corresponding arguments in `defaults_manipulation_experiment.yaml`.
+3. After predicting goal state for PDDL, to perform the manipulation in AI2THOR, run the following command:
+For easy, medium or hard1 difficulties of cut task,
+```
+cd script
+python cut_task_manipulation_experiment.py ../data --task_type cut_task --level easy
+```
+For hard2 difficulty of cut task,
+```
+cd script
+python cut_task_manipulation_experiment_hard2.py ../data
+```
+It is similar to run experiments for other four tasks.
 
 ## Citation
 If you'd like to compare against this work, please cite:
