@@ -2,6 +2,19 @@ import os
 import pdb
 import numpy as np
 
+def construct_result_saving_path(root, task_folder, level_folder, instance_folder):
+    save_path = os.path.join(root, task_folder)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+    save_path = os.path.join(save_path, level_folder)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+    save_path = os.path.join(save_path, instance_folder)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
+    return save_path
+
 def target_object_select(controller, depth_image, gt_obj_infos, pred_obj_masks, threshold):
     target_obj_id = None
 
