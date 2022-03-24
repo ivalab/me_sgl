@@ -8,8 +8,8 @@ import torch
 from torchvision import transforms
 
 from ai2thor.controller import Controller
-from knowledge_base import OBJECT_LIST, CUT_OBJECT_ATTRIBUTES, ActionMap
-from utils import construct_initial_state, get_groundtruth_perception_cut, \
+from knowledge_base import OBJECT_LIST, OD_OBJECT_ATTRIBUTES, ActionMap
+from utils import construct_initial_state, get_groundtruth_perception_od, \
     target_object_select, construct_result_saving_path
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -50,14 +50,14 @@ def main(args):
         controller.step(action="Teleport",
                         position=scene_info['agent']['position'],
                         rotation=scene_info['agent']['rotation'],
-                        horizon=min(scene_info['agent']['cameraHorizon'], 59.9))
+                        horizon=min(scene_info['agent']['rotation']['cameraHorizon'], 59.9))
         controller.step(action='Pass')
 
         # get the ground truth objects and segmentation
-        gt_object, gt_object_info, gt_subject, gt_subject_info = get_groundtruth_perception_cut(controller,
-                                                                                                scene_info,
-                                                                                                OBJECT_LIST,
-                                                                                                CUT_OBJECT_ATTRIBUTES)
+        gt_subject, gt_subject_info = get_groundtruth_perception_od(controller,
+                                                                    scene_info,
+                                                                    OBJECT_LIST,
+                                                                    OD_OBJECT_ATTRIBUTES)
 
         # Perception module interprets the scene
         img = Image.fromarray(controller.last_event.frame)  # cv2img)#frame)
@@ -76,15 +76,15 @@ def main(args):
         labels = prediction[0]['labels'][:idx].cpu().numpy()
 
         # construct the initial state of the scene
-        init_state, objects, object, pred_object_seg, subject, pred_subject_seg = construct_initial_state(labels,
-                                                                                                          gt_object,
-                                                                                                          gt_subject,
-                                                                                                          prediction,
-                                                                                                          OBJECT_LIST,
-                                                                                                          CUT_OBJECT_ATTRIBUTES)
+        init_state, objects, subject, pred_subject_seg = construct_initial_state(labels,
+                                                                                 None,
+                                                                                 gt_subject,
+                                                                                 prediction,
+                                                                                 OBJECT_LIST,
+                                                                                 OD_OBJECT_ATTRIBUTES)
 
         # check if initial state of the scene is constructed successfully
-        if subject is None or object is None:
+        if (gt_subject is None and subject is not None) or (gt_subject is not None and subject != gt_subject):
             perception_success = False
 
         # get the predicted goal state
@@ -104,23 +104,24 @@ def main(args):
             task_learning_success = False
 
         # Write PDDL Problem
-        objects += ' arm'
-        init_state += ' (free arm)'
-        pddl_problem = '(define (problem cut_vision)\n' + \
-                       '    (:domain cut)\n' + \
+        objects += ' arm hand'
+        init_state += ' (free arm) (CONTAINABLE hand)'
+        pddl_problem = '(define (problem delivery_vision)\n' + \
+                       '    (:domain delivery)\n' + \
                        '    (:objects' + objects + ')\n' + \
                        '    (:init' + init_state + ')\n' + \
                        '    (:goal (and ' + pddl_goal_state_written + '))\n' + \
                        ')\n'
 
-        with open("../PDDL/problem/cut_problem.pddl", "w") as f:
+        with open("../PDDL/problem/object_delivery_problem.pddl", "w") as f:
             f.write(pddl_problem)
 
         # call PDDL solver to solve written problem
         subprocess.call(
-            '../downward/fast-downward.py ../PDDL/domain/cut_domain.pddl ../PDDL/problem/cut_problem.pddl '
+            '../downward/fast-downward.py ../PDDL/domain/delivery_domain.pddl '
+            '../PDDL/problem/object_delivery_problem.pddl '
             '--search "lazy_greedy([ff()], preferred=[ff()])"',
-            shell=True) # stdout=subprocess.DEVNULL
+            shell=True)  # stdout=subprocess.DEVNULL
 
         # Parse the plan generated by fast downward into a list of actions and objects
         plan = []
@@ -132,45 +133,27 @@ def main(args):
                     elements = line.split('\n')[0]
                     elements = elements[1:-1].split()
                     sub_task = []
+
+                    # bypass some actions not supported in AI2THOR
+                    if elements[0] not in ActionMap:
+                        continue
+
                     # action
                     sub_task.append(elements[0])
                     # target object
                     sub_task.append(elements[1])
 
                     plan.append(sub_task)
-            task_planning_success &= perception_success
-            task_planning_success &= task_learning_success
+            task_planning_success = False
 
             # delete file
             os.remove('./sas_plan')
         else:
             print(f"PDDL doesn't find a solution")
-            task_planning_success = False
+            task_planning_success = True
 
-        # perform planned actions
-        depth_image = controller.last_event.depth_frame
-        for sub_task in plan:
-            action = sub_task[0]
-            target_object = sub_task[1].capitalize()
-
-            # select the object from potential object list
-            if target_object == object:
-                target_obj_id = target_object_select(controller, depth_image,
-                                                     gt_object_info, pred_object_seg, args.maskrcnn_score_thre)
-                if target_obj_id is None:
-                    execution_success &= False
-            elif target_object == subject:
-                target_obj_id = target_object_select(controller, depth_image,
-                                                     gt_subject_info, pred_subject_seg, args.maskrcnn_score_thre)
-
-                if target_obj_id is None:
-                    execution_success &= False
-
-            controller.step(
-                action=ActionMap[action],
-                objectId=target_obj_id,
-                forceAction=True
-            )
+        # For the hard2 scenario, we are not supported to perform any actions
+        execution_success &= task_planning_success
 
         # save results for all evaluation metrics
         with open(os.path.join(save_path, 'result.txt'), 'w') as f:
@@ -184,11 +167,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('root', type=str, default='../data',
                         help='Root folder for saving test samples')
-    parser.add_argument('--task_type', type=str, default='cut_task',
+    parser.add_argument('--task_type', type=str, default='object_delivery',
                         choices=['cut_task', 'cook_task', 'clean_task', 'object_delivery', 'pick_n_place'],
                         help='Type of manipulation task')
-    parser.add_argument('--level', type=str, default='easy', choices=['easy', 'medium', 'hard1'],
-                        help='Level of the task, can be easy, median, hard1')
+    parser.add_argument('--level', type=str, default='hard2', choices=['hard2'],
+                        help='Level of the task, can only be hard2')
     parser.add_argument('--maskrcnn_model_path', type=str,
                         default='../pretrained_model/maskrcnn_model.pt',
                         help='Path for saved pretrained maskrcnn model')

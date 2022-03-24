@@ -55,7 +55,41 @@ def target_object_select(controller, depth_image, gt_obj_infos, pred_obj_masks, 
 
     return target_obj_id
 
-def get_groundtruth_perception(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
+def get_groundtruth_perception_od(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
+    gt_subject = gt_subject_info = None
+    scene_objects = []
+    for obj in scene_info['objects']:
+        object_type = obj['type']
+        scene_objects.append(obj['type'])
+        if object_type not in OBJECT_LIST:
+            continue
+        if OBJECT_ATTRIBUTES[object_type] == 'GRASPABLE' and obj['is_goal_object']:
+            gt_subject = object_type
+            gt_subject_info = getObjectInfo(controller, gt_subject)
+
+    return gt_subject, gt_subject_info
+
+def get_groundtruth_perception_pnp(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
+    gt_object = gt_object_info = None
+    gt_subject = gt_subject_info = None
+    scene_objects = []
+    for obj in scene_info['objects']:
+        object_type = obj['type']
+        scene_objects.append(obj['type'])
+        if object_type not in OBJECT_LIST:
+            continue
+        if OBJECT_ATTRIBUTES[object_type] == 'GRASPABLE' and obj['is_goal_object']:
+            gt_subject = object_type
+            # gt_subject_seg = getObjectSeg(controller, gt_subject)
+            gt_subject_info = getObjectInfo(controller, gt_subject)
+        elif OBJECT_ATTRIBUTES[object_type] == 'CONTAINABLE' and obj['is_goal_object']:
+            gt_object = object_type
+            # gt_object_seg = getObjectSeg(controller, gt_object)
+            gt_object_info = getObjectInfo(controller, gt_object)
+
+    return gt_object, gt_object_info, gt_subject, gt_subject_info
+
+def get_groundtruth_perception_cut(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
     gt_object = gt_object_info = None
     gt_subject = gt_subject_info = None
     scene_objects = []
@@ -98,21 +132,26 @@ def construct_initial_state(labels, gt_object, gt_subject, prediction, OBJECT_LI
             unique_object_list.append(OBJECT_LIST[label - 1])
 
         # the label is ordered by the confidence score, thus the first one is the most confident one
-        if (OBJECT_LIST[label - 1] == gt_object):
+        if gt_object is not None and OBJECT_LIST[label - 1] == gt_object:
             object = OBJECT_LIST[label - 1]
             mask = prediction[0]['masks'][i].cpu().numpy()
             mask = mask[0]
             # mask = mask > args.maskrcnn_score_thre
             pred_object_seg.append(mask)
 
-        if (OBJECT_LIST[label - 1] == gt_subject):
+        if gt_subject is not None and OBJECT_LIST[label - 1] == gt_subject:
             subject = OBJECT_LIST[label - 1]
             mask = prediction[0]['masks'][i].cpu().numpy()
             mask = mask[0]
             # mask = mask > args.maskrcnn_score_thre
             pred_subject_seg.append(mask)
 
-    return init_state, objects, object, pred_object_seg, subject, pred_subject_seg
+    if gt_object is None:
+        return init_state, objects, subject, pred_subject_seg
+    elif gt_subject is None:
+        return init_state, objects, object, pred_object_seg
+    else:
+        return init_state, objects, object, pred_object_seg, subject, pred_subject_seg
 
 def getObjectInfo(controller, object):
     '''

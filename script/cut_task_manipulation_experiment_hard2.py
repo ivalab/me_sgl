@@ -10,9 +10,9 @@ import torch
 from torchvision import transforms
 
 from ai2thor.controller import Controller
-from knowledge_base import OBJECT_LIST, OBJECT_ATTRIBUTES, ActionMap
-from utils import getObjectSeg, getObjectInfo, construct_initial_state, \
-    get_groundtruth_perception, target_object_select, construct_result_saving_path
+from knowledge_base import OBJECT_LIST, CUT_OBJECT_ATTRIBUTES, ActionMap
+from utils import construct_initial_state, get_groundtruth_perception_cut, \
+    target_object_select, construct_result_saving_path
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -56,10 +56,10 @@ def main(args):
         controller.step(action='Pass')
 
         # get the ground truth objects and segmentation
-        gt_object, gt_object_info, gt_subject, gt_subject_info = get_groundtruth_perception(controller,
-                                                                                            scene_info,
-                                                                                            OBJECT_LIST,
-                                                                                            OBJECT_ATTRIBUTES)
+        gt_object, gt_object_info, gt_subject, gt_subject_info = get_groundtruth_perception_cut(controller,
+                                                                                                scene_info,
+                                                                                                OBJECT_LIST,
+                                                                                                CUT_OBJECT_ATTRIBUTES)
 
         # Perception module interprets the scene
         img = Image.fromarray(controller.last_event.frame)  # cv2img)#frame)
@@ -83,7 +83,7 @@ def main(args):
                                                                                                           gt_subject,
                                                                                                           prediction,
                                                                                                           OBJECT_LIST,
-                                                                                                          OBJECT_ATTRIBUTES)
+                                                                                                          CUT_OBJECT_ATTRIBUTES)
 
         # check if initial state of the scene is constructed successfully
         if (gt_subject is None and subject is not None) or (gt_subject is not None and subject != gt_subject) or \
