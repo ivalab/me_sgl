@@ -1,6 +1,10 @@
 ActionMap = {'pickup': 'PickupObject',
              'cut': 'SliceObject',
              'place': 'PutObject',
+             'dropoff': 'PutObject',
+             'toggle': 'ToggleObjectOn',
+             'open': 'OpenObject',
+             'close': 'CloseObject',
              }
 
 # List of involved objects
@@ -26,6 +30,21 @@ PNP_OBJECT_ATTRIBUTES = {'Tomato': 'GRASPABLE', 'Apple': 'GRASPABLE', 'Bread': '
 
 OD_OBJECT_ATTRIBUTES = {}
 
+COOK_OBJECT_ATTRIBUTES = {'Egg': 'COOKOBJECT', 'Bread': 'COOKOBJECT', 'Lettuce': 'COOKOBJECT',
+                          'Potato': 'COOKOBJECT',  'Microwave': 'COOKTOOL', 'Toaster': 'COOKTOOL', 'Pan': 'COOKTOOL'}
+
+
+COOKABLE_OBJECT_ATTRIBUTES = {'Egg': ['GRASPABLE'], 'Lettuce': ['GRASPABLE'], 'Potato': ['GRASPABLE'],
+                              'Bread': ['GRASPABLE', 'SLICED']}
+
+COOK_TOOL_ATTRIBUTES = {'Toaster': ['TOGGLEABLE', 'SLICE_CONTAINABLE'],
+                        'Microwave': ['TOGGLEABLE', 'CONTAINABLE', 'OPENABLE', 'CLOSEABLE', 'CLOSED'],
+                        'Pan': ['TOGGLEABLE','OPEN_CONTAINABLE']}
+
+CLEAN_OBJECT_ATTRIBUTES = {'Bowl': 'GRASPABLE', 'Cup': 'GRASPABLE', 'Mug': 'GRASPABLE',
+                           'Pan': 'GRASPABLE', 'Plate': 'GRASPABLE', 'Pot': 'GRASPABLE',
+                           'SinkBasin': 'CONTAINABLE', 'Faucet': 'TOGGLEABLE'}
+
 for obj in OBJECT_LIST:
     if obj not in CUT_OBJECT_ATTRIBUTES:
         CUT_OBJECT_ATTRIBUTES[obj] = 'NOATTRIBUTES'
@@ -37,3 +56,9 @@ for obj in OBJECT_LIST:
         OD_OBJECT_ATTRIBUTES[obj] = 'NOATTRIBUTES'
     else:
         OD_OBJECT_ATTRIBUTES[obj] = 'GRASPABLE'
+
+    if obj not in COOK_OBJECT_ATTRIBUTES:
+        COOK_OBJECT_ATTRIBUTES[obj] = 'NOATTRIBUTES'
+
+    if obj not in CLEAN_OBJECT_ATTRIBUTES:
+        CLEAN_OBJECT_ATTRIBUTES[obj] = 'NOATTRIBUTES'

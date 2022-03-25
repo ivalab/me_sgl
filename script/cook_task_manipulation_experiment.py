@@ -8,8 +8,9 @@ import torch
 from torchvision import transforms
 
 from ai2thor.controller import Controller
-from knowledge_base import OBJECT_LIST, PNP_OBJECT_ATTRIBUTES, ActionMap
-from utils import construct_initial_state, get_groundtruth_perception_pnp, \
+from knowledge_base import OBJECT_LIST, COOK_OBJECT_ATTRIBUTES, \
+    COOKABLE_OBJECT_ATTRIBUTES, COOK_TOOL_ATTRIBUTES, ActionMap
+from utils import construct_initial_state_cook, get_groundtruth_perception_cook, \
     target_object_select, construct_result_saving_path
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -34,8 +35,8 @@ def main(args):
         task_planning_success = True
 
         folder_path = os.path.join(args.root, args.task_type, args.level, instance_folder_name)
-        save_path = construct_result_saving_path(args.result_save_root, args.task_type, args.level,
-                                                 instance_folder_name)
+        save_path = construct_result_saving_path(args.result_save_root, args.task_type,
+                                                 args.level, instance_folder_name)
 
         # read scenarios information
         with open(os.path.join(folder_path, 'transformations.json'), 'r') as f:
@@ -52,13 +53,39 @@ def main(args):
                         position=scene_info['agent']['position'],
                         rotation=scene_info['agent']['rotation'],
                         horizon=min(scene_info['agent']['cameraHorizon'], 59.9))
+        cook_object_type = ''
+        for obj in scene_info['objects']:
+            object_type = obj['type']
+            if object_type not in OBJECT_LIST or object_type not in COOK_OBJECT_ATTRIBUTES:
+                continue
+            elif COOK_OBJECT_ATTRIBUTES[object_type] == 'COOKTOOL' and obj['is_goal_object']:
+                cook_object_type = object_type
+        # slice the bread
+        for obj in controller.last_event.metadata["objects"]:
+            if obj["objectType"] == 'Bread':
+                _ = controller.step(
+                    action="SliceObject",
+                    objectId=obj["objectId"],
+                    forceAction=True
+                )
         controller.step(action='Pass')
 
         # get the ground truth objects and segmentation
-        gt_object, gt_object_info, gt_subject, gt_subject_info = get_groundtruth_perception_pnp(controller,
-                                                                                                scene_info,
-                                                                                                OBJECT_LIST,
-                                                                                                PNP_OBJECT_ATTRIBUTES)
+        if cook_object_type == 'Pan':
+            # ToDo: figure out how to extract information for knob
+            gt_knob_info, gt_object, gt_object_info, \
+            gt_subject, gt_subject_info = get_groundtruth_perception_cook(controller,
+                                                                          scene_info,
+                                                                          cook_object_type,
+                                                                          OBJECT_LIST,
+                                                                          COOK_OBJECT_ATTRIBUTES)
+        else:
+            gt_object, gt_object_info, \
+            gt_subject, gt_subject_info = get_groundtruth_perception_cook(controller,
+                                                                          scene_info,
+                                                                          cook_object_type,
+                                                                          OBJECT_LIST,
+                                                                          COOK_OBJECT_ATTRIBUTES)
 
         # Perception module interprets the scene
         img = Image.fromarray(controller.last_event.frame)  # cv2img)#frame)
@@ -77,12 +104,26 @@ def main(args):
         labels = prediction[0]['labels'][:idx].cpu().numpy()
 
         # construct the initial state of the scene
-        init_state, objects, object, pred_object_seg, subject, pred_subject_seg = construct_initial_state(labels,
-                                                                                                          gt_object,
-                                                                                                          gt_subject,
-                                                                                                          prediction,
-                                                                                                          OBJECT_LIST,
-                                                                                                          PNP_OBJECT_ATTRIBUTES)
+        if cook_object_type == 'Pan':
+            init_state, objects, object, pred_object_seg, \
+            subject, pred_subject_seg, pred_knob_seg = construct_initial_state_cook(labels,
+                                                                                    gt_object,
+                                                                                    gt_subject,
+                                                                                    cook_object_type,
+                                                                                    prediction,
+                                                                                    OBJECT_LIST,
+                                                                                    COOKABLE_OBJECT_ATTRIBUTES,
+                                                                                    COOK_TOOL_ATTRIBUTES)
+        else:
+            init_state, objects, object, pred_object_seg, \
+            subject, pred_subject_seg = construct_initial_state_cook(labels,
+                                                                     gt_object,
+                                                                     gt_subject,
+                                                                     cook_object_type,
+                                                                     prediction,
+                                                                     OBJECT_LIST,
+                                                                     COOKABLE_OBJECT_ATTRIBUTES,
+                                                                     COOK_TOOL_ATTRIBUTES)
 
         # check if initial state of the scene is constructed successfully
         if subject is None or object is None:
@@ -107,20 +148,19 @@ def main(args):
         # Write PDDL Problem
         objects += ' arm'
         init_state += ' (free arm)'
-        pddl_problem = '(define (problem pick_and_place_vision)\n' + \
-                       '    (:domain pick_and_place)\n' + \
+        pddl_problem = '(define (problem cook_vision)\n' + \
+                       '    (:domain cook)\n' + \
                        '    (:objects' + objects + ')\n' + \
                        '    (:init' + init_state + ')\n' + \
                        '    (:goal (and ' + pddl_goal_state_written + '))\n' + \
                        ')\n'
-
-        with open("../PDDL/problem/pick_and_place_problem.pddl", "w") as f:
+        with open("../PDDL/problem/cook_problem.pddl", "w") as f:
             f.write(pddl_problem)
 
         # call PDDL solver to solve written problem
         subprocess.call(
-            '../downward/fast-downward.py ../PDDL/domain/pick_and_place_domain.pddl '
-            '../PDDL/problem/pick_and_place_problem.pddl --search "lazy_greedy([ff()], preferred=[ff()])"',
+            '../downward/fast-downward.py ../PDDL/domain/cook_domain.pddl ../PDDL/problem/cook_problem.pddl '
+            '--search "lazy_greedy([ff()], preferred=[ff()])"',
             shell=True)  # stdout=subprocess.DEVNULL
 
         # Parse the plan generated by fast downward into a list of actions and objects
@@ -136,10 +176,7 @@ def main(args):
                     # action
                     sub_task.append(elements[0])
                     # target object
-                    if elements[0] == 'place':
-                        sub_task.append(elements[-1])
-                    else:
-                        sub_task.append(elements[1])
+                    sub_task.append(elements[1])
 
                     plan.append(sub_task)
             task_planning_success &= perception_success
@@ -153,7 +190,6 @@ def main(args):
 
         # perform planned actions
         depth_image = controller.last_event.depth_frame
-        ai2thor_action = []
         for sub_task in plan:
             action = sub_task[0]
             target_object = sub_task[1].capitalize()
@@ -170,9 +206,9 @@ def main(args):
 
                 if target_obj_id is None:
                     execution_success &= False
-            ai2thor_action.append((action, target_obj_id))
+            else:
+                print('111')
 
-        for action, target_obj_id in ai2thor_action:
             controller.step(
                 action=ActionMap[action],
                 objectId=target_obj_id,
@@ -187,13 +223,13 @@ def main(args):
             f.write('Task planning module: {}\n'.format(task_planning_success))
             f.write('Execution module: {}'.format(execution_success))
 
-
 if __name__ == "__main__":
     # parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('root', type=str, default='../data',
                         help='Root folder for saving test samples')
-    parser.add_argument('--task_type', type=str, default='pick_n_place',
+    parser.add_argument('--task_type', type=str, default='cook_task',
+                        choices=['cut_task', 'cook_task', 'clean_task', 'object_delivery', 'pick_n_place'],
                         help='Type of manipulation task')
     parser.add_argument('--level', type=str, default='easy', choices=['easy', 'medium', 'hard1'],
                         help='Level of the task, can be easy, median, hard1')

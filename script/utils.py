@@ -15,6 +15,17 @@ def construct_result_saving_path(root, task_folder, level_folder, instance_folde
 
     return save_path
 
+def check_if_object_in_sink(controller, gt_object_infos, gt_subject_infos):
+    for gt_obj in gt_object_infos:
+        gt_obj_mask = controller.last_event.instance_masks[gt_obj['objectId']]
+        for gt_subject in gt_subject_infos:
+            gt_subject_mask = controller.last_event.instance_masks[gt_subject['objectId']]
+
+            if np.sum(np.logical_and(gt_obj_mask, gt_subject_mask)) / np.sum(gt_obj_mask) > 0.8:
+                return True
+
+    return False
+
 def target_object_select(controller, depth_image, gt_obj_infos, pred_obj_masks, threshold):
     target_obj_id = None
 
@@ -55,12 +66,36 @@ def target_object_select(controller, depth_image, gt_obj_infos, pred_obj_masks, 
 
     return target_obj_id
 
-def get_groundtruth_perception_od(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
+def get_groundtruth_perception_cook(controller, scene_info, cook_object_type, OBJECT_LIST, OBJECT_ATTRIBUTES):
+    gt_object = gt_object_info = None
     gt_subject = gt_subject_info = None
-    scene_objects = []
+
+    if cook_object_type == 'Pan':
+        gt_knob_info = getObjectInfo(controller, 'StoveKnob')
+
     for obj in scene_info['objects']:
         object_type = obj['type']
-        scene_objects.append(obj['type'])
+        if object_type not in OBJECT_LIST:
+            continue
+        if OBJECT_ATTRIBUTES[object_type] == 'COOKOBJECT' and obj['is_goal_object']:
+            gt_subject = object_type
+            if gt_subject == "Bread":
+                gt_subject_info = getBreadSeg(controller, gt_subject)
+            else:
+                gt_subject_info = getObjectSeg(controller, gt_subject)
+        elif OBJECT_ATTRIBUTES[object_type] == 'COOKTOOL' and obj['is_goal_object']:
+            gt_object = object_type
+            gt_object_info = getObjectInfo(controller, gt_object)
+
+    if cook_object_type == 'Pan':
+        return gt_knob_info, gt_object, gt_object_info, gt_subject, gt_subject_info
+    else:
+        return gt_object, gt_object_info, gt_subject, gt_subject_info
+
+def get_groundtruth_perception_od(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
+    gt_subject = gt_subject_info = None
+    for obj in scene_info['objects']:
+        object_type = obj['type']
         if object_type not in OBJECT_LIST:
             continue
         if OBJECT_ATTRIBUTES[object_type] == 'GRASPABLE' and obj['is_goal_object']:
@@ -72,10 +107,8 @@ def get_groundtruth_perception_od(controller, scene_info, OBJECT_LIST, OBJECT_AT
 def get_groundtruth_perception_pnp(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
     gt_object = gt_object_info = None
     gt_subject = gt_subject_info = None
-    scene_objects = []
     for obj in scene_info['objects']:
         object_type = obj['type']
-        scene_objects.append(obj['type'])
         if object_type not in OBJECT_LIST:
             continue
         if OBJECT_ATTRIBUTES[object_type] == 'GRASPABLE' and obj['is_goal_object']:
@@ -92,10 +125,8 @@ def get_groundtruth_perception_pnp(controller, scene_info, OBJECT_LIST, OBJECT_A
 def get_groundtruth_perception_cut(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
     gt_object = gt_object_info = None
     gt_subject = gt_subject_info = None
-    scene_objects = []
     for obj in scene_info['objects']:
         object_type = obj['type']
-        scene_objects.append(obj['type'])
         if object_type not in OBJECT_LIST:
             continue
         if OBJECT_ATTRIBUTES[object_type] == 'CUTTABLE' and obj['is_goal_object']:
@@ -110,6 +141,28 @@ def get_groundtruth_perception_cut(controller, scene_info, OBJECT_LIST, OBJECT_A
     return gt_object, gt_object_info, gt_subject, gt_subject_info
     # return gt_object, gt_object_seg, gt_subject, gt_subject_seg
 
+def get_groundtruth_perception_clean(controller, scene_info, OBJECT_LIST, OBJECT_ATTRIBUTES):
+    gt_object = gt_object_info = None
+    gt_subject = gt_subject_info = None
+    gt_faucet = gt_faucet_info = None
+    for obj in scene_info['objects']:
+        object_type = obj['type']
+        if object_type == 'Sink':
+            object_type = 'SinkBasin'
+        if object_type not in OBJECT_LIST:
+            continue
+        if OBJECT_ATTRIBUTES[object_type] == 'GRASPABLE' and obj['is_goal_object']:
+            gt_subject = object_type
+            gt_subject_info = getObjectInfo(controller, gt_subject)
+        elif OBJECT_ATTRIBUTES[object_type] == 'CONTAINABLE' and obj['is_goal_object']:
+            gt_object = object_type
+            gt_object_info = getObjectInfo(controller, gt_object)
+        elif OBJECT_ATTRIBUTES[object_type] == 'TOGGLEABLE' and obj['is_goal_object']:
+            gt_faucet = object_type
+            gt_faucet_info = getObjectInfo(controller, gt_faucet)
+
+    return gt_object, gt_object_info, gt_subject, gt_subject_info, gt_faucet, gt_faucet_info
+
 def construct_initial_state(labels, gt_object, gt_subject, prediction, OBJECT_LIST, OBJECT_ATTRIBUTES):
     init_state = ''
     objects = ''
@@ -121,7 +174,7 @@ def construct_initial_state(labels, gt_object, gt_subject, prediction, OBJECT_LI
     subject = None
 
     for i, label in enumerate(labels):
-        if (OBJECT_LIST[label - 1] not in unique_object_list):
+        if OBJECT_LIST[label - 1] not in unique_object_list:
             init_state += ' ('
             init_state += OBJECT_ATTRIBUTES[OBJECT_LIST[label - 1]]
             init_state += ' '
@@ -150,6 +203,115 @@ def construct_initial_state(labels, gt_object, gt_subject, prediction, OBJECT_LI
         return init_state, objects, subject, pred_subject_seg
     elif gt_subject is None:
         return init_state, objects, object, pred_object_seg
+    else:
+        return init_state, objects, object, pred_object_seg, subject, pred_subject_seg
+
+def construct_initial_state_clean(labels, gt_object, gt_subject, gt_faucet, prediction, OBJECT_LIST, OBJECT_ATTRIBUTES):
+    init_state = ''
+    objects = ''
+    unique_object_list = []
+
+    pred_object_seg = []
+    pred_subject_seg = []
+    pred_faucet_seg = []
+    object = None
+    subject = None
+    faucet = None
+
+    for i, label in enumerate(labels):
+        if OBJECT_LIST[label - 1] not in unique_object_list:
+            init_state += ' ('
+            init_state += OBJECT_ATTRIBUTES[OBJECT_LIST[label - 1]]
+            init_state += ' '
+            objects += ' '
+
+        if (OBJECT_LIST[label - 1] == 'SinkBasin'):
+            init_state += 'Sink'
+            init_state += ')'
+            objects += 'Sink'
+            unique_object_list.append('Sink')
+        else:
+            init_state += OBJECT_LIST[label - 1]
+            init_state += ')'
+            objects += OBJECT_LIST[label - 1]
+            unique_object_list.append(OBJECT_LIST[label - 1])
+
+        # the label is ordered by the confidence score, thus the first one is the most confident one
+        if gt_object is not None and OBJECT_LIST[label - 1] == gt_object:
+            object = OBJECT_LIST[label - 1]
+            mask = prediction[0]['masks'][i].cpu().numpy()
+            mask = mask[0]
+            # mask = mask > args.maskrcnn_score_thre
+            pred_object_seg.append(mask)
+
+        if gt_subject is not None and OBJECT_LIST[label - 1] == gt_subject:
+            subject = OBJECT_LIST[label - 1]
+            mask = prediction[0]['masks'][i].cpu().numpy()
+            mask = mask[0]
+            # mask = mask > args.maskrcnn_score_thre
+            pred_subject_seg.append(mask)
+
+        if OBJECT_LIST[label - 1] == gt_faucet:
+            faucet = OBJECT_LIST[label - 1]
+            mask = prediction[0]['masks'][i].cpu().numpy()
+            mask = mask[0]
+            # mask = mask > args.maskrcnn_score_thre
+            pred_faucet_seg.append(mask)
+
+    return init_state, objects, object, pred_object_seg, subject, pred_subject_seg, faucet, pred_faucet_seg
+
+def construct_initial_state_cook(labels, gt_object, gt_subject, cook_object_type, prediction,
+                                 OBJECT_LIST, COOKABLE_OBJECT_ATTRIBUTES, COOK_TOOL_ATTRIBUTES):
+    init_state = ''
+    objects = ''
+    unique_object_list = []
+
+    pred_object_seg = []
+    pred_subject_seg = []
+    pred_knob_seg = []
+    object = None
+    subject = None
+
+    for i, label in enumerate(labels):
+        if OBJECT_LIST[label - 1] not in unique_object_list:
+            objects += ' '
+            objects += OBJECT_LIST[label - 1]
+            unique_object_list.append(OBJECT_LIST[label - 1])
+
+        if OBJECT_LIST[label - 1] == gt_object:
+            object = OBJECT_LIST[label - 1]
+            mask = prediction[0]['masks'][i].cpu().numpy()
+            mask = mask[0]
+            pred_object_seg.append(mask)
+            # mask = mask > args.maskrcnn_score_thre
+            for attr in COOK_TOOL_ATTRIBUTES[object]:
+                init_state += ' ('
+                init_state += attr
+                init_state += ' '
+                init_state += object
+                init_state += ')'
+
+        if OBJECT_LIST[label - 1] == gt_subject:
+            subject = OBJECT_LIST[label - 1]
+            mask = prediction[0]['masks'][i].cpu().numpy()
+            mask = mask[0]
+            # mask = mask > args.maskrcnn_score_thre
+            for attr in COOKABLE_OBJECT_ATTRIBUTES[subject]:
+                init_state += ' ('
+                init_state += attr
+                init_state += ' '
+                init_state += subject
+                init_state += ')'
+            pred_subject_seg.append(mask)
+
+        if cook_object_type == 'Pan' and (OBJECT_LIST[label - 1] == 'StoveKnob'):
+            mask = prediction[0]['masks'][i].cpu().numpy()
+            mask = mask[0]
+            # mask = mask > args.maskrcnn_score_thre
+            pred_knob_seg.append(mask)
+
+    if cook_object_type == 'Pan':
+        return init_state, objects, object, pred_object_seg, subject, pred_subject_seg, pred_knob_seg
     else:
         return init_state, objects, object, pred_object_seg, subject, pred_subject_seg
 
@@ -190,6 +352,8 @@ def find_all_substring(str, sub):
         pos.append(start)
         start += len(sub) # use start += 1 to find overlapping matches
 
+    return pos
+
 def getBreadSeg(controller, object):
     assert object == 'Bread'
     object_seg = {}
@@ -203,3 +367,12 @@ def getBreadSeg(controller, object):
             else:
                 object_seg[obj_id] = np.logical_or(object_seg[obj_id], mask) 
     return list(object_seg.values())
+
+def dirty(controller, obj_type):
+    for o in controller.last_event.metadata["objects"]:
+        if o["objectType"] == obj_type:
+            _ = controller.step(
+                action="DirtyObject",
+                objectId=o['objectId'],
+                forceAction=True
+            )

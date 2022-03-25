@@ -149,6 +149,7 @@ def main(args):
 
         # perform planned actions
         depth_image = controller.last_event.depth_frame
+        ai2thor_action = []
         for sub_task in plan:
             action = sub_task[0]
             target_object = sub_task[1].capitalize()
@@ -166,11 +167,15 @@ def main(args):
                 if target_obj_id is None:
                     execution_success &= False
 
+            ai2thor_action.append((action, target_obj_id))
+
+        for action, target_obj_id in ai2thor_action:
             controller.step(
                 action=ActionMap[action],
                 objectId=target_obj_id,
                 forceAction=True
             )
+            controller.step(action='Pass')
 
         # save results for all evaluation metrics
         with open(os.path.join(save_path, 'result.txt'), 'w') as f:
