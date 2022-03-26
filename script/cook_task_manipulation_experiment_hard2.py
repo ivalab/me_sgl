@@ -52,7 +52,7 @@ def main(args):
         controller.step(action="Teleport",
                         position=scene_info['agent']['position'],
                         rotation=scene_info['agent']['rotation'],
-                        horizon=min(scene_info['agent']['cameraHorizon'], 59.9))
+                        horizon=min(scene_info['agent']['rotation']['cameraHorizon'], 59.9))
         cook_object_type = ''
         for obj in scene_info['objects']:
             object_type = obj['type']
@@ -130,6 +130,12 @@ def main(args):
         if subject is None or object is None:
             perception_success = False
 
+        # check if initial state of the scene is constructed successfully
+        if (gt_subject is None and subject is not None) or (gt_subject is not None and subject != gt_subject) or \
+                (gt_object is None and object is not None) or \
+                (gt_object is not None and object != gt_object):
+            perception_success = False
+
         # get the predicted goal state
         with open(os.path.join(save_path, 'pred_pddl_goal_state.txt'), 'r') as f:
             pddl_goal_state_pr = f.readline().split('\n')[0].split()
@@ -185,54 +191,16 @@ def main(args):
                         sub_task.append(elements[1])
 
                     plan.append(sub_task)
-            task_planning_success &= perception_success
-            task_planning_success &= task_learning_success
+            task_planning_success = False
 
             # delete file
             os.remove('./sas_plan')
         else:
             print(f"PDDL doesn't find a solution")
-            task_planning_success = False
+            task_planning_success = True
 
-        # perform planned actions
-        depth_image = controller.last_event.depth_frame
-        ai2thor_action = []
-        for sub_task in plan:
-            action = sub_task[0]
-            target_object = sub_task[1].capitalize()
-
-            # select the object from potential object list
-            if target_object == object:
-                target_obj_id = target_object_select(controller, depth_image,
-                                                     gt_object_info, pred_object_seg, args.maskrcnn_score_thre)
-                if target_obj_id is None:
-                    execution_success &= False
-            elif target_object == subject:
-                if object == 'Toaster' and subject == 'Bread':
-                    target_obj_id = target_bread_select(depth_image, gt_subject_info, pred_subject_seg,
-                                                        args.maskrcnn_score_thre)
-                else:
-                    target_obj_id = target_object_select(controller, depth_image,
-                                                         gt_subject_info, pred_subject_seg, args.maskrcnn_score_thre)
-
-                if target_obj_id is None:
-                    execution_success &= False
-            else:
-                target_obj_id = target_object_select(controller, depth_image,
-                                                     gt_knob_info, pred_knob_seg, args.maskrcnn_score_thre)
-
-                if target_obj_id is None:
-                    execution_success &= False
-
-            ai2thor_action.append((action, target_obj_id))
-
-        for action, target_obj_id in ai2thor_action:
-            controller.step(
-                action=ActionMap[action],
-                objectId=target_obj_id,
-                forceAction=True
-            )
-            controller.step(action='Pass')
+        # For the hard2 scenario, we are not supported to perform any actions
+        execution_success &= task_planning_success
 
         # save results for all evaluation metrics
         with open(os.path.join(save_path, 'result.txt'), 'w') as f:
@@ -249,8 +217,8 @@ if __name__ == "__main__":
     parser.add_argument('--task_type', type=str, default='cook_task',
                         choices=['cut_task', 'cook_task', 'clean_task', 'object_delivery', 'pick_n_place'],
                         help='Type of manipulation task')
-    parser.add_argument('--level', type=str, default='easy', choices=['easy', 'medium', 'hard1'],
-                        help='Level of the task, can be easy, median, hard1')
+    parser.add_argument('--level', type=str, default='hard2', choices=['hard2'],
+                        help='Level of the task, can only be hard2')
     parser.add_argument('--maskrcnn_model_path', type=str,
                         default='../pretrained_model/maskrcnn_model.pt',
                         help='Path for saved pretrained maskrcnn model')

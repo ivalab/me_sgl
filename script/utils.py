@@ -16,6 +16,9 @@ def construct_result_saving_path(root, task_folder, level_folder, instance_folde
     return save_path
 
 def check_if_object_in_sink(controller, gt_object_infos, gt_subject_infos):
+    if gt_object_infos is None or gt_subject_infos is None:
+        return False
+
     for gt_obj in gt_object_infos:
         gt_obj_mask = controller.last_event.instance_masks[gt_obj['objectId']]
         for gt_subject in gt_subject_infos:
@@ -79,8 +82,8 @@ def get_groundtruth_perception_cook(controller, scene_info, cook_object_type, OB
             continue
         if OBJECT_ATTRIBUTES[object_type] == 'COOKOBJECT' and obj['is_goal_object']:
             gt_subject = object_type
-            if gt_subject == "Bread":
-                gt_subject_info = getBreadSeg(controller, gt_subject)
+            if cook_object_type == 'Toaster' and gt_subject == "Bread":
+                gt_subject_info = getBreadSeg(controller)
             else:
                 gt_subject_info = getObjectSeg(controller, gt_subject)
         elif OBJECT_ATTRIBUTES[object_type] == 'COOKTOOL' and obj['is_goal_object']:
@@ -354,19 +357,88 @@ def find_all_substring(str, sub):
 
     return pos
 
-def getBreadSeg(controller, object):
-    assert object == 'Bread'
-    object_seg = {}
-    for obj, mask in controller.last_event.instance_masks.items():
-        if (obj.find(object) != -1):
-            pos = find_all_substring(obj, object)
-            assert len(pos) == 2
-            obj_id = obj[:pos[1]]
-            if obj_id not in object_seg:
-                object_seg[obj_id] = mask
+def target_bread_select(depth_image, gt_obj_infos, pred_obj_masks, threshold):
+    best_score_bread = float('-inf')
+    selected_bread = None
+    # select the best bread
+    for pred_obj_mask in pred_obj_masks:
+        pred_obj_mask_bool = pred_obj_mask > threshold
+        # firstly check if this mask has 50% IoU with any ground-truth mask
+        for gt_obj_name in gt_obj_infos:
+            gt_mask_bool = gt_obj_infos[gt_obj_name]['mask']
+            # gt_mask_bool = gt_mask > threshold
+            if np.sum(np.logical_and(pred_obj_mask_bool, gt_mask_bool)) / np.sum(gt_mask_bool) < 0.5:
+                break
+
+            # compute average confidence score
+            ys, xs = np.where(pred_obj_mask > threshold)
+            conf_score = np.mean(pred_obj_mask[ys, xs])
+
+            # get the depth from camera center to the mean pixel of target object
+            y, x = int(np.mean(ys)), int(np.mean(xs))
+            depth = depth_image[y, x]
+            # normalize the depth to 0 ~ 1
+            depth_min = np.min(depth_image)
+            depth_max = np.max(depth_image)
+            depth_score = (depth - depth_min) / (depth_max - depth_min)
+
+            # weighted sum confidence score and depth score
+            score = 0.5 * conf_score + 0.5 * (1 - depth_score)
+            if score > best_score_bread:
+                best_score_bread = score
+                selected_bread = gt_obj_infos[gt_obj_name]['individual']
+
+    # select the closest bread slice
+    target_obj_id = ''
+    best_depth = float('-inf')
+    for objectId, mask in selected_bread:
+        ys, xs = np.where(mask)
+        y, x = int(np.mean(ys)), int(np.mean(xs))
+        depth = depth_image[y, x]
+        depth_min = np.min(depth_image)
+        depth_max = np.max(depth_image)
+        depth_score = (depth - depth_min) / (depth_max - depth_min)
+        if depth_score > best_depth:
+            best_depth = depth_score
+            target_obj_id = objectId
+
+    return target_obj_id
+
+def getBreadSeg(controller):
+    objects_info = {}
+    for obj in controller.last_event.metadata['objects']:
+        if obj['objectType'] == 'Bread' or obj['objectType'] == 'BreadSliced':
+            if obj['objectId'] not in controller.last_event.instance_masks:
+                continue
+
+            name = obj['name'].split('_')
+            name = '_'.join(name[:2])
+
+            if name not in objects_info:
+                objects_info[name] = {}
+                mask = controller.last_event.instance_masks[obj['objectId']]
+                objects_info[name]['mask'] = mask
+                objects_info[name]['individual'] = [(obj['objectId'], mask)]
             else:
-                object_seg[obj_id] = np.logical_or(object_seg[obj_id], mask) 
-    return list(object_seg.values())
+                mask = controller.last_event.instance_masks[obj['objectId']]
+                objects_info[name]['mask'] = np.logical_or(objects_info[name]['mask'], mask)
+                objects_info[name]['individual'].append((obj['objectId'], mask))
+
+    return objects_info
+
+# def getBreadSeg(controller, object):
+#     assert object == 'Bread'
+#     object_seg = {}
+#     for obj, mask in controller.last_event.instance_masks.items():
+#         if (obj.find(object) != -1):
+#             pos = find_all_substring(obj, object)
+#             assert len(pos) == 2
+#             obj_id = obj[:pos[1]]
+#             if obj_id not in object_seg:
+#                 object_seg[obj_id] = mask
+#             else:
+#                 object_seg[obj_id] = np.logical_or(object_seg[obj_id], mask)
+#     return list(object_seg.values())
 
 def dirty(controller, obj_type):
     for o in controller.last_event.metadata["objects"]:
