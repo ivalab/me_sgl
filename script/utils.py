@@ -85,7 +85,7 @@ def get_groundtruth_perception_cook(controller, scene_info, cook_object_type, OB
             if cook_object_type == 'Toaster' and gt_subject == "Bread":
                 gt_subject_info = getBreadSeg(controller)
             else:
-                gt_subject_info = getObjectSeg(controller, gt_subject)
+                gt_subject_info = getObjectInfo(controller, gt_subject)
         elif OBJECT_ATTRIBUTES[object_type] == 'COOKTOOL' and obj['is_goal_object']:
             gt_object = object_type
             gt_object_info = getObjectInfo(controller, gt_object)
@@ -228,16 +228,16 @@ def construct_initial_state_clean(labels, gt_object, gt_subject, gt_faucet, pred
             init_state += ' '
             objects += ' '
 
-        if (OBJECT_LIST[label - 1] == 'SinkBasin'):
-            init_state += 'Sink'
-            init_state += ')'
-            objects += 'Sink'
-            unique_object_list.append('Sink')
-        else:
-            init_state += OBJECT_LIST[label - 1]
-            init_state += ')'
-            objects += OBJECT_LIST[label - 1]
-            unique_object_list.append(OBJECT_LIST[label - 1])
+            if (OBJECT_LIST[label - 1] == 'SinkBasin'):
+                init_state += 'Sink'
+                init_state += ')'
+                objects += 'Sink'
+                unique_object_list.append('Sink')
+            else:
+                init_state += OBJECT_LIST[label - 1]
+                init_state += ')'
+                objects += OBJECT_LIST[label - 1]
+                unique_object_list.append(OBJECT_LIST[label - 1])
 
         # the label is ordered by the confidence score, thus the first one is the most confident one
         if gt_object is not None and OBJECT_LIST[label - 1] == gt_object:
@@ -281,30 +281,32 @@ def construct_initial_state_cook(labels, gt_object, gt_subject, cook_object_type
             objects += OBJECT_LIST[label - 1]
             unique_object_list.append(OBJECT_LIST[label - 1])
 
+            if OBJECT_LIST[label - 1] == gt_object:
+                object = OBJECT_LIST[label - 1]
+                for attr in COOK_TOOL_ATTRIBUTES[object]:
+                    init_state += ' ('
+                    init_state += attr
+                    init_state += ' '
+                    init_state += object
+                    init_state += ')'
+
+            if OBJECT_LIST[label - 1] == gt_subject:
+                subject = OBJECT_LIST[label - 1]
+                for attr in COOKABLE_OBJECT_ATTRIBUTES[subject]:
+                    init_state += ' ('
+                    init_state += attr
+                    init_state += ' '
+                    init_state += subject
+                    init_state += ')'
+
         if OBJECT_LIST[label - 1] == gt_object:
-            object = OBJECT_LIST[label - 1]
             mask = prediction[0]['masks'][i].cpu().numpy()
             mask = mask[0]
             pred_object_seg.append(mask)
-            # mask = mask > args.maskrcnn_score_thre
-            for attr in COOK_TOOL_ATTRIBUTES[object]:
-                init_state += ' ('
-                init_state += attr
-                init_state += ' '
-                init_state += object
-                init_state += ')'
 
         if OBJECT_LIST[label - 1] == gt_subject:
-            subject = OBJECT_LIST[label - 1]
             mask = prediction[0]['masks'][i].cpu().numpy()
             mask = mask[0]
-            # mask = mask > args.maskrcnn_score_thre
-            for attr in COOKABLE_OBJECT_ATTRIBUTES[subject]:
-                init_state += ' ('
-                init_state += attr
-                init_state += ' '
-                init_state += subject
-                init_state += ')'
             pred_subject_seg.append(mask)
 
         if cook_object_type == 'Pan' and (OBJECT_LIST[label - 1] == 'StoveKnob'):

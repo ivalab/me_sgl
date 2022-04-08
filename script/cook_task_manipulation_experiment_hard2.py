@@ -127,10 +127,6 @@ def main(args):
                                                                      COOK_TOOL_ATTRIBUTES)
 
         # check if initial state of the scene is constructed successfully
-        if subject is None or object is None:
-            perception_success = False
-
-        # check if initial state of the scene is constructed successfully
         if (gt_subject is None and subject is not None) or (gt_subject is not None and subject != gt_subject) or \
                 (gt_object is None and object is not None) or \
                 (gt_object is not None and object != gt_object):

@@ -194,6 +194,8 @@ def main(args):
             print(f"PDDL doesn't find a solution")
             task_planning_success = False
 
+        execution_success &= task_planning_success
+
         # perform planned actions
         depth_image = controller.last_event.depth_frame
         ai2thor_action = []

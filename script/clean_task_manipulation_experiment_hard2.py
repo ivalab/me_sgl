@@ -162,14 +162,13 @@ def main(args):
                         sub_task.append(elements[1])
 
                     plan.append(sub_task)
-            task_planning_success &= perception_success
-            task_planning_success &= task_learning_success
+            task_planning_success = False
 
             # delete file
             os.remove('./sas_plan')
         else:
             print(f"PDDL doesn't find a solution")
-            task_planning_success = False
+            task_planning_success = True
 
         # save results for all evaluation metrics
         with open(os.path.join(save_path, 'result.txt'), 'w') as f:

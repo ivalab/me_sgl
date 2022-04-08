@@ -2,6 +2,7 @@
     (:predicates (GRASPABLE ?x)
     			 (SLICED ?x)
 				 (SLICE_CONTAINABLE ?x)
+				 (OPEN_CONTAINABLE ?x)
     			 (TOGGLEABLE ?x)
     			 (CONTAINABLE ?x)
     			 (OPENABLE ?x) 
@@ -29,6 +30,7 @@
     (:action dropoff :parameters (?x ?y ?z)
         :precondition (and (carry ?y ?x) (or 
 											(and (SLICE_CONTAINABLE ?z) (SLICED ?x))
+											(and (OPEN_CONTAINABLE ?z))
 											(and (CONTAINABLE ?z) (OPENED ?z))))			   
 	:effect       (and (contains ?x ?z)
 	                   (free ?y)
@@ -42,7 +44,8 @@
 	(:action toggle :parameters (?x ?y)
         :precondition (and (contains ?x ?y) (TOGGLEABLE ?y) (or 
 																(and (CONTAINABLE ?y) (CLOSED ?y))
-																(and (SLICE_CONTAINABLE ?y))))			   
+																(and (SLICE_CONTAINABLE ?y))
+																(and (OPEN_CONTAINABLE ?y))))			   
 	:effect       (and (cook ?x ?y)))
 
 )
