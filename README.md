@@ -9,6 +9,7 @@ The **Execution** module performs generated actions with operational information
 ## Table of Contents
 - [Experimental Setup](#Experimental-Setup)
 - [Evaluation Metrics](#Evaluation-Metrics)
+- [Results](#Results)
 - [Perception](#Perception)
 - [Goal Learning](#Goal-Learning)
 - [Task Planning](#Task-Planning)
@@ -33,6 +34,12 @@ For **Goal Learning**, PDDL goal state should be correctly predicted.
 For **Task Planning**, generated action sequence is composed of correct ordered actions. 
 Given that AI2THOR does not support physical modeling of robot-object interaction, **Execution** evaluation requires 
 the Intersection-of-Union (IoU) of detected and ground-truth masks for objects to be over the 0.5 threshold.
+
+# Results
+Compared to the Table provided in the manuscript, this one includes further details for easy, medium, hard1 and hard2
+scenarios.
+![image](https://user-images.githubusercontent.com/27162640/165819616-4dc2fd2b-7f44-49a5-89cd-0b829e9774b2.png)
+
 
 ## Perception
 We employ [Mask R-CNN](https://arxiv.org/abs/1703.06870) as the Perception module to detect objects and their category segmentation masks. 
