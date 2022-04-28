@@ -17,6 +17,7 @@ The **Execution** module performs generated actions with operational information
 - [Scene Reconstruction](#Scene-Reconstruction)
 - [Installation](#Installation)
 - [Usage](#Usage)
+- [Demo](#Demo)
 
 ## Experimental Setup
 Five different daily activities are conducted, which include Picking and Placing, Object Delivery, Cutting, Cleaning and Cooking. 
@@ -123,6 +124,9 @@ cd script
 python cut_task_manipulation_experiment_hard2.py ../data
 ```
 It is similar to run experiments for other four tasks.
+
+## Demo
+![demo](https://user-images.githubusercontent.com/27162640/165842878-a4e75bd7-a87d-4754-9c07-da2ae00411ee.gif)
 
 ## Citation
 If you'd like to compare against this work, please cite:
